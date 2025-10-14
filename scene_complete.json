@@ -73,7 +73,7 @@
         6,
         4.5
       ],
-      "buildingId": null
+      "buildingId": 0
     },
     {
       "name": "-Ewe",
@@ -87,7 +87,7 @@
         6,
         4.5
       ],
-      "buildingId": null
+      "buildingId": 0
     },
     {
       "name": "+Weights",
@@ -101,7 +101,7 @@
         6,
         4.5
       ],
-      "buildingId": null
+      "buildingId": 0
     },
     {
       "name": "-Stamp",
@@ -115,7 +115,7 @@
         6,
         4.5
       ],
-      "buildingId": null
+      "buildingId": 0
     },
     {
       "name": "+Tampon",
@@ -129,7 +129,7 @@
         6,
         4.5
       ],
-      "buildingId": null
+      "buildingId": 0
     },
     {
       "name": "+Pier",
@@ -143,7 +143,7 @@
         14,
         4.5
       ],
-      "buildingId": null
+      "buildingId": 1
     },
     {
       "name": "-Ra",
@@ -157,7 +157,7 @@
         14,
         4.5
       ],
-      "buildingId": null
+      "buildingId": 1
     },
     {
       "name": "+Aces",
@@ -171,7 +171,7 @@
         14,
         4.5
       ],
-      "buildingId": null
+      "buildingId": 1
     },
     {
       "name": "+Seek",
@@ -185,7 +185,7 @@
         1,
         5
       ],
-      "buildingId": null
+      "buildingId": 2
     },
     {
       "name": "-Ekg",
@@ -199,7 +199,7 @@
         1,
         5
       ],
-      "buildingId": null
+      "buildingId": 2
     },
     {
       "name": "+Geyser",
@@ -213,7 +213,7 @@
         1,
         5
       ],
-      "buildingId": null
+      "buildingId": 2
     },
     {
       "name": "-Serf",
@@ -227,7 +227,7 @@
         1,
         5
       ],
-      "buildingId": null
+      "buildingId": 2
     },
     {
       "name": "+Four",
@@ -241,7 +241,7 @@
         1,
         5
       ],
-      "buildingId": null
+      "buildingId": 2
     },
     {
       "name": "+Theta",
@@ -255,7 +255,7 @@
         8.5,
         5
       ],
-      "buildingId": null
+      "buildingId": 3
     },
     {
       "name": "-Tat",
@@ -269,7 +269,7 @@
         8.5,
         5
       ],
-      "buildingId": null
+      "buildingId": 3
     },
     {
       "name": "+Tsunami",
@@ -283,7 +283,7 @@
         8.5,
         5
       ],
-      "buildingId": null
+      "buildingId": 3
     },
     {
       "name": "-Mime",
@@ -297,7 +297,7 @@
         8.5,
         5
       ],
-      "buildingId": null
+      "buildingId": 3
     },
     {
       "name": "+Mend",
@@ -311,7 +311,7 @@
         8.5,
         5
       ],
-      "buildingId": null
+      "buildingId": 3
     }
   ],
   "meshes": [
