@@ -373,9 +373,7 @@
                 scene.add(ambientLight);
 
                 // Add point lights
-                sceneData.lights.forEach((lightData, index) => {
-                    if (!lightData.enabled) return;
-
+                sceneData.lights.forEach((lightData) => {
                     const light = new THREE.PointLight(
                         lightData.color,
                         lightData.intensity,
@@ -387,6 +385,7 @@
                     light.shadow.mapSize.width = 1024;
                     light.shadow.mapSize.height = 1024;
                     light.userData.lightId = lightData.id;
+                    light.userData.enabled = lightData.enabled;
                     scene.add(light);
                     lights.push(light);
                 });
@@ -482,12 +481,12 @@
             // Setup lights list
             const lightsList = document.getElementById('lights-list');
             let lightIndex = 0;
-            sceneData.lights.forEach((lightData) => {
-                if (!lightData.enabled) return;
+            lights.forEach((light) => {
+                if (!light.userData.enabled) return;
 
                 const item = document.createElement('div');
                 item.className = 'light-item';
-                item.textContent = `Light ${lightData.id + 1}`;
+                item.textContent = `Light ${light.userData.lightId + 1}`;
                 if (lightIndex === 0) item.classList.add('active');
                 
                 const currentIndex = lightIndex;
@@ -581,12 +580,16 @@
             });
 
             // Turn off all lights except the selected one
-            lights.forEach((light, i) => {
-                if (i === index) {
+            let enabledLightIndex = 0;
+            lights.forEach((light) => {
+                if (!light.userData.enabled) return;
+                
+                if (enabledLightIndex === index) {
                     light.intensity = sceneData.lights.find(l => l.id === light.userData.lightId).intensity;
                 } else {
                     light.intensity = 0;
                 }
+                enabledLightIndex++;
             });
         }
 
