@@ -481,21 +481,25 @@
 
             // Setup lights list
             const lightsList = document.getElementById('lights-list');
-            sceneData.lights.forEach((lightData, index) => {
+            let lightIndex = 0;
+            sceneData.lights.forEach((lightData) => {
                 if (!lightData.enabled) return;
 
                 const item = document.createElement('div');
                 item.className = 'light-item';
                 item.textContent = `Light ${lightData.id + 1}`;
-                if (index === 0) item.classList.add('active');
+                if (lightIndex === 0) item.classList.add('active');
+                
+                const currentIndex = lightIndex;
                 item.addEventListener('click', () => {
                     document.querySelectorAll('.light-item').forEach(i => i.classList.remove('active'));
                     item.classList.add('active');
-                    currentLightIndex = index;
-                    switchToLightView(index);
+                    currentLightIndex = currentIndex;
+                    switchToLightView(currentIndex);
                     updateURL();
                 });
                 lightsList.appendChild(item);
+                lightIndex++;
             });
 
             // Setup window toggle button
@@ -526,10 +530,14 @@
         function switchToLocationView(index) {
             const location = sceneData.locations[index];
 
-            // Show only the relevant building (and ground)
+            // Set reduced FOV for words mode
+            camera.fov = sceneData.camera.fov / 2;
+            camera.updateProjectionMatrix();
+
+            // Show only the relevant building (hide ground)
             allMeshes.forEach(mesh => {
                 if (mesh.userData.type === 'ground') {
-                    mesh.visible = true;
+                    mesh.visible = false;
                 } else if (location.buildingId === null) {
                     // Show all buildings if no specific building
                     mesh.visible = true;
@@ -558,6 +566,10 @@
         }
 
         function switchToLightView(index) {
+            // Reset FOV to normal for lights mode
+            camera.fov = sceneData.camera.fov;
+            camera.updateProjectionMatrix();
+
             // Show all buildings and ground
             allMeshes.forEach(mesh => {
                 mesh.visible = true;
