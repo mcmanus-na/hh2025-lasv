@@ -428,8 +428,12 @@
                 // Setup UI
                 setupUI();
 
-                // Start in View Words mode
-                switchToLocationView(0);
+                // Try to load from URL, otherwise use defaults
+                if (!loadFromURL()) {
+                    // Start in View Words mode
+                    switchToLocationView(0);
+                    updateURL();
+                }
 
                 document.getElementById('loading').style.display = 'none';
 
@@ -558,9 +562,9 @@
             controls.target.set(...location.target);
             controls.update();
 
-            // Turn on all lights
+            // Turn off all lights in words mode
             lights.forEach(light => {
-                light.intensity = sceneData.lights.find(l => l.id === light.userData.lightId).intensity;
+                light.intensity = 0;
             });
         }
 
@@ -602,6 +606,9 @@
         // Start the application
         initThree();
         loadScene().then(() => {
+            console.log('Lights loaded:', lights.length);
+            console.log('Scene data lights:', sceneData.lights.length);
+            
             // Try to load from URL, otherwise use defaults
             if (!loadFromURL()) {
                 updateURL();
