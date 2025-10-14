@@ -484,9 +484,14 @@
 
             // Setup lights list
             const lightsList = document.getElementById('lights-list');
+            console.log('Setting up lights list, lights array:', lights);
             let lightIndex = 0;
-            lights.forEach((light) => {
-                if (!light.userData.enabled) return;
+            lights.forEach((light, i) => {
+                console.log(`Light ${i}:`, light.userData);
+                if (!light.userData.enabled) {
+                    console.log(`Light ${i} is disabled, skipping`);
+                    return;
+                }
 
                 const item = document.createElement('div');
                 item.className = 'light-item';
@@ -502,6 +507,7 @@
                     updateURL();
                 });
                 lightsList.appendChild(item);
+                console.log(`Added light button ${lightIndex} for light ID ${light.userData.lightId}`);
                 lightIndex++;
             });
 
