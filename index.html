@@ -261,6 +261,93 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
+        // URL state management
+        function updateURL() {
+            const state = {
+                mode: currentMode,
+                cam: [
+                    camera.position.x.toFixed(2),
+                    camera.position.y.toFixed(2),
+                    camera.position.z.toFixed(2)
+                ],
+                target: [
+                    controls.target.x.toFixed(2),
+                    controls.target.y.toFixed(2),
+                    controls.target.z.toFixed(2)
+                ]
+            };
+
+            if (currentMode === 'words') {
+                state.loc = currentLocationIndex;
+            } else {
+                state.light = currentLightIndex;
+                state.windows = windowsVisible ? 1 : 0;
+            }
+
+            const hash = Object.entries(state)
+                .map(([key, val]) => `${key}=${Array.isArray(val) ? val.join(',') : val}`)
+                .join('&');
+            
+            history.replaceState(null, '', `#${hash}`);
+        }
+
+        function loadFromURL() {
+            const hash = window.location.hash.slice(1);
+            if (!hash) return false;
+
+            const params = {};
+            hash.split('&').forEach(part => {
+                const [key, value] = part.split('=');
+                params[key] = value;
+            });
+
+            if (!params.mode) return false;
+
+            // Set mode
+            currentMode = params.mode;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
+            document.querySelector(`.tab[data-tab="${currentMode}"]`).classList.add('active');
+            document.getElementById(`${currentMode}-panel`).classList.add('active');
+
+            // Set camera position
+            if (params.cam) {
+                const pos = params.cam.split(',').map(Number);
+                camera.position.set(pos[0], pos[1], pos[2]);
+            }
+            if (params.target) {
+                const target = params.target.split(',').map(Number);
+                controls.target.set(target[0], target[1], target[2]);
+                controls.update();
+            }
+
+            if (currentMode === 'words') {
+                const locIndex = parseInt(params.loc) || 0;
+                currentLocationIndex = locIndex;
+                document.querySelectorAll('.location-item').forEach((item, i) => {
+                    item.classList.toggle('active', i === locIndex);
+                });
+                switchToLocationView(locIndex);
+            } else {
+                const lightIndex = parseInt(params.light) || 0;
+                currentLightIndex = lightIndex;
+                document.querySelectorAll('.light-item').forEach((item, i) => {
+                    item.classList.toggle('active', i === lightIndex);
+                });
+                
+                if (params.windows !== undefined) {
+                    windowsVisible = params.windows === '1';
+                    const toggleBtn = document.getElementById('toggle-windows-btn');
+                    toggleBtn.textContent = windowsVisible ? 'Hide Windows' : 'Show Windows';
+                    toggleBtn.classList.toggle('windows-hidden', !windowsVisible);
+                }
+                
+                switchToLightView(lightIndex);
+            }
+
+            return true;
+        }
+
         // Load scene data
         async function loadScene() {
             try {
@@ -352,10 +439,6 @@
                 document.getElementById('loading').innerHTML = 'Error loading scene. Please check console.';
             }
         }
-                console.error('Error loading scene:', error);
-                document.getElementById('loading').innerHTML = 'Error loading scene. Please check console.';
-            }
-        }
 
         function setupUI() {
             // Setup tab switching
@@ -426,6 +509,18 @@
                 toggleBtn.classList.toggle('windows-hidden', !windowsVisible);
                 updateURL();
             });
+
+            // Update URL when camera moves
+            let urlUpdateTimeout;
+            controls.addEventListener('change', () => {
+                clearTimeout(urlUpdateTimeout);
+                urlUpdateTimeout = setTimeout(updateURL, 500);
+            });
+
+            // Handle browser back/forward buttons
+            window.addEventListener('hashchange', () => {
+                loadFromURL();
+            });
         }
 
         function switchToLocationView(index) {
@@ -488,105 +583,6 @@
             controls.update();
             renderer.render(scene, camera);
         }
-
-        // URL state management
-        function updateURL() {
-            const state = {
-                mode: currentMode,
-                cam: [
-                    camera.position.x.toFixed(2),
-                    camera.position.y.toFixed(2),
-                    camera.position.z.toFixed(2)
-                ],
-                target: [
-                    controls.target.x.toFixed(2),
-                    controls.target.y.toFixed(2),
-                    controls.target.z.toFixed(2)
-                ]
-            };
-
-            if (currentMode === 'words') {
-                state.loc = currentLocationIndex;
-            } else {
-                state.light = currentLightIndex;
-                state.windows = windowsVisible ? 1 : 0;
-            }
-
-            const hash = Object.entries(state)
-                .map(([key, val]) => `${key}=${Array.isArray(val) ? val.join(',') : val}`)
-                .join('&');
-            
-            history.replaceState(null, '', `#${hash}`);
-        }
-
-        function loadFromURL() {
-            const hash = window.location.hash.slice(1);
-            if (!hash) return false;
-
-            const params = {};
-            hash.split('&').forEach(part => {
-                const [key, value] = part.split('=');
-                params[key] = value;
-            });
-
-            if (!params.mode) return false;
-
-            // Set mode
-            currentMode = params.mode;
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
-            document.querySelector(`.tab[data-tab="${currentMode}"]`).classList.add('active');
-            document.getElementById(`${currentMode}-panel`).classList.add('active');
-
-            // Set camera position
-            if (params.cam) {
-                const pos = params.cam.split(',').map(Number);
-                camera.position.set(pos[0], pos[1], pos[2]);
-            }
-            if (params.target) {
-                const target = params.target.split(',').map(Number);
-                controls.target.set(target[0], target[1], target[2]);
-                controls.update();
-            }
-
-            if (currentMode === 'words') {
-                const locIndex = parseInt(params.loc) || 0;
-                currentLocationIndex = locIndex;
-                document.querySelectorAll('.location-item').forEach((item, i) => {
-                    item.classList.toggle('active', i === locIndex);
-                });
-                switchToLocationView(locIndex);
-            } else {
-                const lightIndex = parseInt(params.light) || 0;
-                currentLightIndex = lightIndex;
-                document.querySelectorAll('.light-item').forEach((item, i) => {
-                    item.classList.toggle('active', i === lightIndex);
-                });
-                
-                if (params.windows !== undefined) {
-                    windowsVisible = params.windows === '1';
-                    const toggleBtn = document.getElementById('toggle-windows-btn');
-                    toggleBtn.textContent = windowsVisible ? 'Hide Windows' : 'Show Windows';
-                    toggleBtn.classList.toggle('windows-hidden', !windowsVisible);
-                }
-                
-                switchToLightView(lightIndex);
-            }
-
-            return true;
-        }
-
-        // Update URL when camera moves
-        let urlUpdateTimeout;
-        controls.addEventListener('change', () => {
-            clearTimeout(urlUpdateTimeout);
-            urlUpdateTimeout = setTimeout(updateURL, 500);
-        });
-
-        // Handle browser back/forward buttons
-        window.addEventListener('hashchange', () => {
-            loadFromURL();
-        });
 
         // Start the application
         initThree();
