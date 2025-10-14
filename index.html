@@ -1,0 +1,602 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Scene Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #1a1a1a;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+        }
+
+        #top-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: #2a2a2a;
+            display: flex;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .tab {
+            flex: 1;
+            background: #2a2a2a;
+            border: none;
+            color: #999;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab:hover {
+            background: #333;
+            color: #fff;
+        }
+
+        .tab.active {
+            background: #333;
+            color: #fff;
+            border-bottom-color: #4a9eff;
+        }
+
+        #side-panel {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            width: 280px;
+            bottom: 0;
+            background: #2a2a2a;
+            overflow-y: auto;
+            z-index: 99;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+        }
+
+        #side-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #side-panel::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        #side-panel::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+
+        #side-panel::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+
+        .panel-content {
+            display: none;
+            padding: 15px;
+        }
+
+        .panel-content.active {
+            display: block;
+        }
+
+        .location-item, .light-item {
+            background: #333;
+            border: 2px solid #444;
+            color: #fff;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .location-item:hover, .light-item:hover {
+            background: #3a3a3a;
+            border-color: #4a9eff;
+            transform: translateX(5px);
+        }
+
+        .location-item.active, .light-item.active {
+            background: #4a9eff;
+            border-color: #4a9eff;
+            font-weight: bold;
+        }
+
+        #toggle-windows-btn {
+            background: #ff6b6b;
+            border: none;
+            color: #fff;
+            padding: 15px;
+            margin-top: 20px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        #toggle-windows-btn:hover {
+            background: #ff5252;
+            transform: scale(1.02);
+        }
+
+        #toggle-windows-btn.windows-hidden {
+            background: #51cf66;
+        }
+
+        #toggle-windows-btn.windows-hidden:hover {
+            background: #40c057;
+        }
+
+        .section-title {
+            color: #aaa;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 24px;
+            z-index: 200;
+            text-align: center;
+        }
+
+        .spinner {
+            border: 4px solid #333;
+            border-top: 4px solid #4a9eff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        Loading Scene...
+    </div>
+
+    <div id="top-bar">
+        <button class="tab active" data-tab="words">View Words</button>
+        <button class="tab" data-tab="lights">View Lights</button>
+    </div>
+
+    <div id="side-panel">
+        <div id="words-panel" class="panel-content active">
+            <div class="section-title">Locations</div>
+            <div id="locations-list"></div>
+        </div>
+
+        <div id="lights-panel" class="panel-content">
+            <div class="section-title">Light Controls</div>
+            <div id="lights-list"></div>
+            <button id="toggle-windows-btn">Hide Windows</button>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let scene, camera, renderer, controls;
+        let sceneData;
+        let windowMeshes = [];
+        let allMeshes = [];
+        let lights = [];
+        let windowsVisible = true;
+        let currentMode = 'words';
+        let currentLocationIndex = 0;
+        let currentLightIndex = 0;
+
+        // Initialize Three.js scene
+        function initThree() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a1a);
+
+            camera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Load scene data
+        async function loadScene() {
+            try {
+                const response = await fetch('scene_complete.json');
+                sceneData = await response.json();
+
+                // Setup camera
+                camera.fov = sceneData.camera.fov;
+                camera.near = sceneData.camera.near;
+                camera.far = sceneData.camera.far;
+                camera.updateProjectionMatrix();
+                camera.position.set(...sceneData.camera.position);
+                camera.up.set(0, 0, 1);
+
+                controls.target.set(...sceneData.camera.target);
+                controls.update();
+
+                // Add ambient light
+                const ambientLight = new THREE.AmbientLight(
+                    sceneData.ambientLight.color,
+                    sceneData.ambientLight.intensity
+                );
+                scene.add(ambientLight);
+
+                // Add point lights
+                sceneData.lights.forEach((lightData, index) => {
+                    if (!lightData.enabled) return;
+
+                    const light = new THREE.PointLight(
+                        lightData.color,
+                        lightData.intensity,
+                        500
+                    );
+                    light.position.set(...lightData.position);
+                    light.decay = 0;
+                    light.castShadow = true;
+                    light.shadow.mapSize.width = 1024;
+                    light.shadow.mapSize.height = 1024;
+                    light.userData.lightId = lightData.id;
+                    scene.add(light);
+                    lights.push(light);
+                });
+
+                // Load all meshes
+                for (const meshData of sceneData.meshes) {
+                    const geometry = new THREE.BufferGeometry();
+                    geometry.setAttribute('position',
+                        new THREE.Float32BufferAttribute(meshData.vertices, 3));
+                    geometry.setAttribute('normal',
+                        new THREE.Float32BufferAttribute(meshData.normals, 3));
+                    geometry.setAttribute('uv',
+                        new THREE.Float32BufferAttribute(meshData.uvs, 2));
+                    geometry.setIndex(meshData.indices);
+
+                    const texture = await new THREE.TextureLoader().loadAsync(meshData.texture);
+                    texture.flipY = false;
+                    texture.wrapS = THREE.ClampToEdgeWrapping;
+                    texture.wrapT = THREE.ClampToEdgeWrapping;
+
+                    const material = new THREE.MeshStandardMaterial({
+                        map: texture,
+                        side: THREE.DoubleSide
+                    });
+
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.castShadow = meshData.castShadow;
+                    mesh.receiveShadow = meshData.receiveShadow;
+                    mesh.userData.type = meshData.type;
+                    mesh.userData.buildingId = meshData.buildingId;
+
+                    scene.add(mesh);
+                    allMeshes.push(mesh);
+
+                    if (meshData.type === 'window') {
+                        windowMeshes.push(mesh);
+                    }
+                }
+
+                // Setup UI
+                setupUI();
+
+                // Start in View Words mode
+                switchToLocationView(0);
+
+                document.getElementById('loading').style.display = 'none';
+
+            } catch (error) {
+                console.error('Error loading scene:', error);
+                document.getElementById('loading').innerHTML = 'Error loading scene. Please check console.';
+            }
+        }
+                console.error('Error loading scene:', error);
+                document.getElementById('loading').innerHTML = 'Error loading scene. Please check console.';
+            }
+        }
+
+        function setupUI() {
+            // Setup tab switching
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
+
+                    tab.classList.add('active');
+                    const tabName = tab.dataset.tab;
+                    document.getElementById(`${tabName}-panel`).classList.add('active');
+
+                    if (tabName === 'words') {
+                        currentMode = 'words';
+                        switchToLocationView(currentLocationIndex);
+                    } else {
+                        currentMode = 'lights';
+                        switchToLightView(currentLightIndex);
+                    }
+                    updateURL();
+                });
+            });
+
+            // Setup locations list
+            const locationsList = document.getElementById('locations-list');
+            sceneData.locations.forEach((location, index) => {
+                const item = document.createElement('div');
+                item.className = 'location-item';
+                item.textContent = location.name;
+                if (index === 0) item.classList.add('active');
+                item.addEventListener('click', () => {
+                    document.querySelectorAll('.location-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                    currentLocationIndex = index;
+                    switchToLocationView(index);
+                    updateURL();
+                });
+                locationsList.appendChild(item);
+            });
+
+            // Setup lights list
+            const lightsList = document.getElementById('lights-list');
+            sceneData.lights.forEach((lightData, index) => {
+                if (!lightData.enabled) return;
+
+                const item = document.createElement('div');
+                item.className = 'light-item';
+                item.textContent = `Light ${lightData.id + 1}`;
+                if (index === 0) item.classList.add('active');
+                item.addEventListener('click', () => {
+                    document.querySelectorAll('.light-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                    currentLightIndex = index;
+                    switchToLightView(index);
+                    updateURL();
+                });
+                lightsList.appendChild(item);
+            });
+
+            // Setup window toggle button
+            const toggleBtn = document.getElementById('toggle-windows-btn');
+            toggleBtn.addEventListener('click', () => {
+                windowsVisible = !windowsVisible;
+                windowMeshes.forEach(mesh => {
+                    mesh.visible = windowsVisible;
+                });
+                toggleBtn.textContent = windowsVisible ? 'Hide Windows' : 'Show Windows';
+                toggleBtn.classList.toggle('windows-hidden', !windowsVisible);
+                updateURL();
+            });
+        }
+
+        function switchToLocationView(index) {
+            const location = sceneData.locations[index];
+
+            // Show only the relevant building (and ground)
+            allMeshes.forEach(mesh => {
+                if (mesh.userData.type === 'ground') {
+                    mesh.visible = true;
+                } else if (location.buildingId === null) {
+                    // Show all buildings if no specific building
+                    mesh.visible = true;
+                } else {
+                    mesh.visible = mesh.userData.buildingId === location.buildingId;
+                }
+            });
+
+            // Ensure windows are visible
+            windowMeshes.forEach(mesh => {
+                if (mesh.visible) {
+                    mesh.visible = true;
+                }
+            });
+            windowsVisible = true;
+
+            // Move camera
+            camera.position.set(...location.position);
+            controls.target.set(...location.target);
+            controls.update();
+
+            // Turn on all lights
+            lights.forEach(light => {
+                light.intensity = sceneData.lights.find(l => l.id === light.userData.lightId).intensity;
+            });
+        }
+
+        function switchToLightView(index) {
+            // Show all buildings and ground
+            allMeshes.forEach(mesh => {
+                mesh.visible = true;
+            });
+
+            // Apply current window visibility state
+            windowMeshes.forEach(mesh => {
+                mesh.visible = windowsVisible;
+            });
+
+            // Turn off all lights except the selected one
+            lights.forEach((light, i) => {
+                if (i === index) {
+                    light.intensity = sceneData.lights.find(l => l.id === light.userData.lightId).intensity;
+                } else {
+                    light.intensity = 0;
+                }
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // URL state management
+        function updateURL() {
+            const state = {
+                mode: currentMode,
+                cam: [
+                    camera.position.x.toFixed(2),
+                    camera.position.y.toFixed(2),
+                    camera.position.z.toFixed(2)
+                ],
+                target: [
+                    controls.target.x.toFixed(2),
+                    controls.target.y.toFixed(2),
+                    controls.target.z.toFixed(2)
+                ]
+            };
+
+            if (currentMode === 'words') {
+                state.loc = currentLocationIndex;
+            } else {
+                state.light = currentLightIndex;
+                state.windows = windowsVisible ? 1 : 0;
+            }
+
+            const hash = Object.entries(state)
+                .map(([key, val]) => `${key}=${Array.isArray(val) ? val.join(',') : val}`)
+                .join('&');
+            
+            history.replaceState(null, '', `#${hash}`);
+        }
+
+        function loadFromURL() {
+            const hash = window.location.hash.slice(1);
+            if (!hash) return false;
+
+            const params = {};
+            hash.split('&').forEach(part => {
+                const [key, value] = part.split('=');
+                params[key] = value;
+            });
+
+            if (!params.mode) return false;
+
+            // Set mode
+            currentMode = params.mode;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
+            document.querySelector(`.tab[data-tab="${currentMode}"]`).classList.add('active');
+            document.getElementById(`${currentMode}-panel`).classList.add('active');
+
+            // Set camera position
+            if (params.cam) {
+                const pos = params.cam.split(',').map(Number);
+                camera.position.set(pos[0], pos[1], pos[2]);
+            }
+            if (params.target) {
+                const target = params.target.split(',').map(Number);
+                controls.target.set(target[0], target[1], target[2]);
+                controls.update();
+            }
+
+            if (currentMode === 'words') {
+                const locIndex = parseInt(params.loc) || 0;
+                currentLocationIndex = locIndex;
+                document.querySelectorAll('.location-item').forEach((item, i) => {
+                    item.classList.toggle('active', i === locIndex);
+                });
+                switchToLocationView(locIndex);
+            } else {
+                const lightIndex = parseInt(params.light) || 0;
+                currentLightIndex = lightIndex;
+                document.querySelectorAll('.light-item').forEach((item, i) => {
+                    item.classList.toggle('active', i === lightIndex);
+                });
+                
+                if (params.windows !== undefined) {
+                    windowsVisible = params.windows === '1';
+                    const toggleBtn = document.getElementById('toggle-windows-btn');
+                    toggleBtn.textContent = windowsVisible ? 'Hide Windows' : 'Show Windows';
+                    toggleBtn.classList.toggle('windows-hidden', !windowsVisible);
+                }
+                
+                switchToLightView(lightIndex);
+            }
+
+            return true;
+        }
+
+        // Update URL when camera moves
+        let urlUpdateTimeout;
+        controls.addEventListener('change', () => {
+            clearTimeout(urlUpdateTimeout);
+            urlUpdateTimeout = setTimeout(updateURL, 500);
+        });
+
+        // Handle browser back/forward buttons
+        window.addEventListener('hashchange', () => {
+            loadFromURL();
+        });
+
+        // Start the application
+        initThree();
+        loadScene().then(() => {
+            // Try to load from URL, otherwise use defaults
+            if (!loadFromURL()) {
+                updateURL();
+            }
+        });
+        animate();
+    </script>
+</body>
+</html>
