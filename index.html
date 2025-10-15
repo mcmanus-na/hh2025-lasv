@@ -201,7 +201,7 @@
         <div id="lights-panel" class="panel-content">
             <div class="section-title">Light Controls</div>
             <div id="lights-list"></div>
-            <button id="toggle-windows-btn">Hide Windows</button>
+            <button id="toggle-windows-btn">Close Windows</button>
         </div>
     </div>
 
@@ -229,6 +229,8 @@
         let currentMode = 'words';
         let currentLocationIndex = 0;
         let currentLightIndex = 0;
+        let groundCenter = new THREE.Vector3();
+        let groundSize = 0;
 
         // Initialize Three.js scene
         function initThree() {
@@ -338,7 +340,8 @@
                 if (params.windows !== undefined) {
                     windowsVisible = params.windows === '1';
                     const toggleBtn = document.getElementById('toggle-windows-btn');
-                    toggleBtn.textContent = windowsVisible ? 'Hide Windows' : 'Show Windows';
+                    // Closed = visible, Open = invisible
+                    toggleBtn.textContent = windowsVisible ? 'Open Windows' : 'Close Windows';
                     toggleBtn.classList.toggle('windows-hidden', !windowsVisible);
                 }
                 
@@ -422,6 +425,21 @@
 
                     if (meshData.type === 'window') {
                         windowMeshes.push(mesh);
+                    }
+
+                    // Find ground center for lights view
+                    if (meshData.type === 'ground') {
+                        geometry.computeBoundingBox();
+                        const box = geometry.boundingBox;
+                        groundCenter.set(
+                            (box.min.x + box.max.x) / 2,
+                            (box.min.y + box.max.y) / 2,
+                            (box.min.z + box.max.z) / 2
+                        );
+                        groundSize = Math.max(
+                            box.max.x - box.min.x,
+                            box.max.y - box.min.y
+                        );
                     }
                 }
 
@@ -507,7 +525,8 @@
                 windowMeshes.forEach(mesh => {
                     mesh.visible = windowsVisible;
                 });
-                toggleBtn.textContent = windowsVisible ? 'Hide Windows' : 'Show Windows';
+                // Closed = visible (blocks light), Open = invisible (lets light through)
+                toggleBtn.textContent = windowsVisible ? 'Open Windows' : 'Close Windows';
                 toggleBtn.classList.toggle('windows-hidden', !windowsVisible);
                 updateURL();
             });
@@ -544,7 +563,7 @@
                 }
             });
 
-            // Ensure windows are visible
+            // Ensure windows are visible (closed)
             windowMeshes.forEach(mesh => {
                 if (mesh.visible) {
                     mesh.visible = true;
@@ -568,15 +587,27 @@
             camera.fov = sceneData.camera.fov;
             camera.updateProjectionMatrix();
 
+            // Position camera looking straight down at ground center
+            const height = groundSize * 1.5;
+            camera.position.set(groundCenter.x, groundCenter.y, groundCenter.z + height);
+            controls.target.copy(groundCenter);
+            controls.update();
+
             // Show all buildings and ground
             allMeshes.forEach(mesh => {
                 mesh.visible = true;
             });
 
-            // Apply current window visibility state
+            // Hide windows by default in lights mode (open = invisible = light passes through)
+            windowsVisible = false;
             windowMeshes.forEach(mesh => {
-                mesh.visible = windowsVisible;
+                mesh.visible = false;
             });
+
+            // Update button text (windows are open, so show "Close Windows")
+            const toggleBtn = document.getElementById('toggle-windows-btn');
+            toggleBtn.textContent = 'Close Windows';
+            toggleBtn.classList.add('windows-hidden');
 
             // Turn off all lights except the selected one
             lights.forEach((light, i) => {
