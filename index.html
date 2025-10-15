@@ -484,31 +484,20 @@
 
             // Setup lights list
             const lightsList = document.getElementById('lights-list');
-            console.log('Setting up lights list, lights array:', lights);
-            let lightIndex = 0;
-            lights.forEach((light, i) => {
-                console.log(`Light ${i}:`, light.userData);
-                if (!light.userData.enabled) {
-                    console.log(`Light ${i} is disabled, skipping`);
-                    return;
-                }
-
+            lights.forEach((light, index) => {
                 const item = document.createElement('div');
                 item.className = 'light-item';
                 item.textContent = `Light ${light.userData.lightId + 1}`;
-                if (lightIndex === 0) item.classList.add('active');
+                if (index === 0) item.classList.add('active');
                 
-                const currentIndex = lightIndex;
                 item.addEventListener('click', () => {
                     document.querySelectorAll('.light-item').forEach(i => i.classList.remove('active'));
                     item.classList.add('active');
-                    currentLightIndex = currentIndex;
-                    switchToLightView(currentIndex);
+                    currentLightIndex = index;
+                    switchToLightView(index);
                     updateURL();
                 });
                 lightsList.appendChild(item);
-                console.log(`Added light button ${lightIndex} for light ID ${light.userData.lightId}`);
-                lightIndex++;
             });
 
             // Setup window toggle button
@@ -590,16 +579,12 @@
             });
 
             // Turn off all lights except the selected one
-            let enabledLightIndex = 0;
-            lights.forEach((light) => {
-                if (!light.userData.enabled) return;
-                
-                if (enabledLightIndex === index) {
+            lights.forEach((light, i) => {
+                if (i === index) {
                     light.intensity = sceneData.lights.find(l => l.id === light.userData.lightId).intensity;
                 } else {
                     light.intensity = 0;
                 }
-                enabledLightIndex++;
             });
         }
 
@@ -612,9 +597,6 @@
         // Start the application
         initThree();
         loadScene().then(() => {
-            console.log('Lights loaded:', lights.length);
-            console.log('Scene data lights:', sceneData.lights.length);
-            
             // Try to load from URL, otherwise use defaults
             if (!loadFromURL()) {
                 updateURL();
